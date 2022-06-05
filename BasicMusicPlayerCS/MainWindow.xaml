@@ -5,21 +5,31 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BasicMusicPlayerCS"
         mc:Ignorable="d"
-        Title="Basic Music Player (C# Version 1)" Height="450" Width="800" ContentRendered="Window_ContentRendered">
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13"
+        TextOptions.TextFormattingMode="Ideal" 
+        TextOptions.TextRenderingMode="Auto"        
+        Background="{DynamicResource MaterialDesignPaper}"
+        FontFamily="{DynamicResource MaterialDesignFont}"
+        Title="Basic Music Player (C# Version 1.2)" Height="640" Width="800" ContentRendered="Window_ContentRendered">
     <Grid>
-        <TextBox x:Name="output"/>
-        <GroupBox Header="Custom Stuff" Margin="10 10 10 70" Height="60" VerticalAlignment="Bottom">
+        <GroupBox Header="Songs" Margin="10 10 10 200">
+            <ListBox x:Name="availableSongs" SelectionChanged="availableSongs_SelectionChanged">
+            </ListBox>
+        </GroupBox>
+        <GroupBox Header="Custom Stuff" Margin="10 10 10 110" Height="80" VerticalAlignment="Bottom">
             <Grid>
                 <TextBox x:Name="inputCustom" Text="Custom music file adress or server"/>
             </Grid>
         </GroupBox>
-        <GroupBox Header="Controls" Margin="10" Height="60" VerticalAlignment="Bottom" HorizontalAlignment="Center" Width="590">
+        <GroupBox Header="Controls" Margin="10" Height="90" VerticalAlignment="Bottom" HorizontalAlignment="Center" Width="590">
             <Grid>
                 <Button x:Name="repeatButton" Content="Repeat" HorizontalAlignment="Left" Width="100" Click="repeatButton_Click"/>
                 <Button x:Name="prevButton" Content="Previous" HorizontalAlignment="Left" Margin="120 0 0 0" Width="100" Click="prevButton_Click"/>
                 <Button x:Name="playButton" Content="Play" HorizontalAlignment="Center" Width="100" Click="playButton_Click"/>
                 <Button x:Name="nextButton" Content="Next" HorizontalAlignment="Right" Margin="0 0 120 0" Width="100" Click="nextButton_Click"/>
-                <Button x:Name="searchFiles" Content="Search" HorizontalAlignment="Right" Width="100" Click="searchFiles_Click"/>
             </Grid>
         </GroupBox>
 

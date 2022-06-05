@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Media;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -22,6 +23,12 @@ namespace BasicMusicPlayerCS
     
     public partial class MainWindow : Window
     {
+        [DllImport("Kernel32")]
+        public static extern void AllocConsole();
+
+        [DllImport("Kernel32")]
+        public static extern void FreeConsole();
+
         //lets start with the classic folder
         public string searchPath = "\\";
         //lets do a folder for files to not clout the current folder of audio files
@@ -29,142 +36,21 @@ namespace BasicMusicPlayerCS
         //lets just do it the classic way
         public string musicListFile = "musicList.txt";
         public List<string> musicArray = new List<string>();
-        public List<string> musicNameArray = new List<string>();
         public WMPLib.WindowsMediaPlayer player = new WMPLib.WindowsMediaPlayer();
         public int curIdx = 0;
         public bool repeatMusic = false;
+        public bool doneSearching = false;
+
         public MainWindow()
         {
             InitializeComponent();
         }
 
+        #region events
         private void Window_ContentRendered(object sender, EventArgs e)
         {
-            setupFiles();
-        }
-
-        public dynamic funnyRead(string filepath, bool turnintoarray)
-        {
-            dynamic daFileContent = "";
-            try
-            {
-                if(turnintoarray == true)
-                {
-                    daFileContent = System.IO.File.ReadAllText(filepath).Trim().Split('\n');
-                }
-                else
-                {
-                    daFileContent = System.IO.File.ReadAllText(filepath);
-                }
-            }
-            catch (Exception ex)
-            {
-                return ex;
-            }
-            return daFileContent;
-        }
-
-        public void setupFiles()
-        {
-            output.Text = "";
-            string daPath = "";
-            string[] details = { };
-            if (searchPath == "\\")
-            {
-                daPath = System.IO.Directory.GetCurrentDirectory() + searchPath;
-                musicFolder = System.IO.Directory.GetCurrentDirectory() + "\\music\\";
-            }
-            else
-            {
-                daPath = searchPath;
-            }
-            string daMusicListDir = daPath + musicListFile;
-
-            output.Text = daMusicListDir + "\n" + musicFolder;
-
-            if (System.IO.File.Exists(daMusicListDir))
-            {
-                try
-                {
-                    details = funnyRead(daMusicListDir, true);
-                }
-                catch(Exception ex)
-                {
-                    output.Text += ex;
-                }
-                foreach(var i in details)
-                {
-                    var advancedDetails = i.Split("|");
-                    output.Text += "\n" + advancedDetails[0];
-                    output.Text += "\n" + advancedDetails[1];
-                    if (System.IO.Directory.Exists(musicFolder))
-                    {
-                        //music folder shoudl come formatted already
-                        var daMusicFileDir = musicFolder + advancedDetails[0];
-                        if (System.IO.File.Exists(daMusicFileDir))
-                        {
-                            musicArray.Add(daMusicFileDir);
-                        }
-                    }
-                }
-            }
-            /*
-            else if(System.IO.Directory.Exists(musicFolder) && !System.IO.File.Exists(daMusicListDir))
-            {
-                output.Text += "\npath exists but the file doesnt, maybe it isnt there?? check it up man oh btw music path exists";
-            }
-            else if(!System.IO.Directory.Exists(musicFolder) && !System.IO.File.Exists(daMusicListDir) )
-            {
-                output.Text += "\npath exists but the file doesnt, maybe it isnt there?? check it up man oh btw music path doesnt exist";
-            }*/
-        }
-
-        private void setPlayerState(string state)
-        {
-            switch (state)
-            {
-                case "play":
-                    player.URL = musicArray[curIdx];
-                    player.controls.play();
-                    playButton.Content = "Pause";
-                    break;
-                case "check":
-                    if(player.playState == WMPLib.WMPPlayState.wmppsPlaying)
-                    {
-                        player.controls.pause();
-                        playButton.Content = "Resume";
-                    } 
-                    else if(player.playState == WMPLib.WMPPlayState.wmppsPaused)
-                    {
-                        player.controls.play();
-                        playButton.Content = "Pause";
-                    }
-                    else if(player.playState == WMPLib.WMPPlayState.wmppsUndefined)
-                    {
-                        setPlayerState("play");
-                    }
-                    break;
-                case "prev":
-                    if(curIdx != 0)
-                    {
-                        curIdx--;
-                        setPlayerState("play");
-                    }
-                    break;
-                case "next":
-                    if(curIdx != musicArray.Count - 1)
-                    {
-                        curIdx++;
-                        setPlayerState("play");
-                    }
-                    break;
-                case "setrepeat":
-                    break;
-            }
-        }
-
-        private void searchFiles_Click(object sender, RoutedEventArgs e)
-        {
+            //setupConsole(Properties.Settings.Default.showLogConsole); //why tho
+            setupConsole(true); //why tho
             setupFiles();
         }
 
@@ -187,5 +73,192 @@ namespace BasicMusicPlayerCS
         {
 
         }
+
+        private void availableSongs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            //automatically plays on open
+            var oldIdx = curIdx;
+            curIdx = availableSongs.SelectedIndex;
+            if (Properties.Settings.Default.playOnOpen == true)
+            {
+                setPlayerState("play");
+            }
+            else
+            {
+                if(curIdx != oldIdx)
+                {
+                    setPlayerState("play");
+                }
+            }
+        }
+        #endregion
+
+        #region functions
+        public dynamic funnyRead(string filepath, bool turnintoarray)
+        {
+            dynamic daFileContent = "";
+            try
+            {
+                if (turnintoarray == true)
+                {
+                    daFileContent = System.IO.File.ReadAllText(filepath).Trim().Split('\n');
+                }
+                else
+                {
+                    daFileContent = System.IO.File.ReadAllText(filepath);
+                }
+            }
+            catch (Exception ex)
+            {
+                return ex;
+            }
+            return daFileContent;
+        }
+
+        public void setupFiles()
+        {
+            Console.WriteLine("stopping player");
+            setPlayerState("stop");
+            Console.WriteLine("cleaning stuff just i ncase");
+            cleanLists();
+            Console.WriteLine("setting up");
+            doneSearching = false;
+            string daPath = "";
+            string[] details = { };
+            if (searchPath == "\\")
+            {
+                daPath = System.IO.Directory.GetCurrentDirectory() + searchPath;
+                musicFolder = System.IO.Directory.GetCurrentDirectory() + "\\music\\";
+            }
+            else
+            {
+                daPath = searchPath;
+            }
+            string daMusicListDir = daPath + musicListFile;
+
+            if (doneSearching == false)
+            {
+                if (System.IO.File.Exists(daMusicListDir))
+                {
+                    try
+                    {
+                        details = funnyRead(daMusicListDir, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw;
+                    }
+                    foreach (var i in details)
+                    {
+                        var advancedDetails = i.Split("|");
+                        if (System.IO.Directory.Exists(musicFolder))
+                        {
+                            //music folder shoudl come formatted already
+                            var daMusicFileDir = musicFolder + advancedDetails[0];
+                            if (System.IO.File.Exists(daMusicFileDir))
+                            {
+                                musicArray.Add(daMusicFileDir);
+                                availableSongs.Items.Add(advancedDetails[1]);
+                                postSetupFiles();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public void setPlayerState(string state)
+        {
+            switch (state)
+            {
+                case "play":
+                    if(doneSearching == true)
+                    {
+                        player.URL = musicArray[curIdx];
+                        player.controls.play();
+                        playButton.Content = "Pause";
+                    }
+                    break;
+                case "check":
+                    if (player.playState == WMPLib.WMPPlayState.wmppsPlaying)
+                    {
+                        player.controls.pause();
+                        playButton.Content = "Resume";
+                    }
+                    else if (player.playState == WMPLib.WMPPlayState.wmppsPaused)
+                    {
+                        player.controls.play();
+                        playButton.Content = "Pause";
+                    }
+                    else if (player.playState == WMPLib.WMPPlayState.wmppsUndefined)
+                    {
+                        setPlayerState("play");
+                    }
+                    break;
+                case "prev":
+                    if (curIdx != 0)
+                    {
+                        curIdx--;
+                        setPlayerState("play");
+                    }
+                    break;
+                case "next":
+                    if (curIdx != musicArray.Count - 1)
+                    {
+                        curIdx++;
+                        setPlayerState("play");
+                    }
+                    break;
+                case "setrepeat":
+                    break;
+                case "stop":
+                    if(player.playState == WMPLib.WMPPlayState.wmppsPlaying || player.playState == WMPLib.WMPPlayState.wmppsPaused || player.playState == WMPLib.WMPPlayState.wmppsUndefined)
+                    {
+                        player.controls.stop();
+                        player.close();
+                    }
+                    break;
+            }
+        }
+
+        private void cleanLists()
+        {
+            Console.WriteLine("cleaning up");
+            if (musicArray.Count > 0)
+            {
+                Console.WriteLine("cleaning up music file list");
+                musicArray.Clear();
+            }
+            if (availableSongs.Items.Count > 0)
+            {
+                Console.WriteLine("cleaning up music list");
+                availableSongs.Items.Clear();
+            }
+        }
+
+        private void setupConsole(bool? show = false)
+        {
+            AllocConsole();
+
+            if (show == true)
+            {
+                Console.Title = "Basic Music Player Log Console";
+            }
+            else
+            {
+                FreeConsole();
+            }
+        }
+
+        private void postSetupFiles()
+        {
+            /*
+            if(musicArray.Count > 0)
+            {
+                availableSongs.SelectedIndex = curIdx; //what
+            }*/
+            doneSearching = true;
+        }
+        #endregion
     }
 }
